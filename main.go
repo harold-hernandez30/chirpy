@@ -36,9 +36,9 @@ func main() {
 
 	mux.Handle("/app/", sessionConfig.middlewareMetricsInc(strippedPrefixHandler))
 
-	mux.HandleFunc("/healthz", handlerHealth)
-	mux.HandleFunc("/metrics", sessionConfig.handlePrintMetrics)
-	mux.HandleFunc("/reset", sessionConfig.handleResetMetrics)
+	mux.HandleFunc("GET /healthz", handlerHealth)
+	mux.HandleFunc("GET /metrics", sessionConfig.handlePrintMetrics)
+	mux.HandleFunc("POST /reset", sessionConfig.handleResetMetrics)
 
 	listenAndServeErr := handler.ListenAndServe()
 
