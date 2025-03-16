@@ -34,12 +34,13 @@ func main() {
 	fileServerHandler := http.FileServer(http.Dir("."))
 	strippedPrefixHandler := http.StripPrefix("/app", fileServerHandler)
 
+	mux.HandleFunc("GET /admin/metrics", sessionConfig.handlePrintMetrics)
+	mux.HandleFunc("POST /admin/reset", sessionConfig.handleResetMetrics)
+	
 	mux.Handle("/app/", sessionConfig.middlewareMetricsInc(strippedPrefixHandler))
 
 	mux.HandleFunc("GET /api/healthz", handlerHealth)
-	mux.HandleFunc("GET /api/metrics", sessionConfig.handlePrintMetrics)
-	mux.HandleFunc("POST /api/reset", sessionConfig.handleResetMetrics)
-
+	
 	listenAndServeErr := handler.ListenAndServe()
 
 	if listenAndServeErr != nil {
@@ -49,9 +50,14 @@ func main() {
 
 func (cfg *apiConfig) handlePrintMetrics(res http.ResponseWriter, req *http.Request) {
 	header := res.Header()
-	header.Set("Content-Type", "text/plain; charset=utf-8")
-	res.WriteHeader(http.StatusOK)
-	content := fmt.Sprintf("Hits: %d\n", cfg.fileserverHits.Load())
+	header.Set("Content-Type", "text/html; charset=utf-8")
+	content := fmt.Sprintf(`
+	<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+  </body>
+</html>`, cfg.fileserverHits.Load())
 	res.Write([]byte(content))
 }
 
