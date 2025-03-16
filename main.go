@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -94,14 +95,36 @@ func handleChirpValidate(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(200)
 
 
-	type ValidChirp struct {
-		Valid bool `json:"valid"`
+	type CleanMessage struct {
+		CleanedBody string `json:"cleaned_body"`
 	}
 
 
-	validChirpResponse, _ := json.Marshal(ValidChirp{Valid: true})
+	cleanedMessage := cleanMessage(reqParams.Body)
+	validChirpResponse, _ := json.Marshal(CleanMessage{CleanedBody: cleanedMessage})
 
 	res.Write(validChirpResponse)
+}
+
+func cleanMessage(msg string) string {
+	profaneWords := []string{"kerfuffle", "sharbert","fornax"}
+
+	allWords := strings.Split(msg, " ")
+
+	for i, word := range allWords {
+
+		for _, profaneWord := range profaneWords {
+			if strings.ToLower(word) == profaneWord {
+				allWords[i] = "****"
+				continue
+			}
+			
+		}
+		
+		
+	}
+
+	return strings.Join(allWords, " ")
 }
 
 func handlerHealth(res http.ResponseWriter, req *http.Request) {
