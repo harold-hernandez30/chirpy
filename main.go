@@ -8,11 +8,18 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
-)
 
+	"github.com/harold-hernandez30/chirpy/internal/database"
+	"github.com/joho/godotenv"
+
+	_ "github.com/lib/pq"
+)
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db *database.Queries
+	platform string
 }
+
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 
@@ -22,22 +29,43 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
+func (cfg *apiConfig) middlewareDevOnly(next func (res http.ResponseWriter, req *http.Request)) func (http.ResponseWriter, *http.Request) {
+	return func (res http.ResponseWriter, req *http.Request) {
+		if cfg.platform == "dev" {
+			next(res, req)
+		} else {
+			res.WriteHeader(http.StatusForbidden)
+			content := []byte(http.StatusText(http.StatusForbidden))
+			res.Write(content)
+		}
+	}
+}
+
 
 func main() {
 	// Database setup
+	godotenv.Load(".env")
 	dbURL := os.Getenv("DB_URL")
-	_, dbErr := sql.Open("postgres", dbURL)
 
-	if dbErr != nil {
-		log.Fatalf("error connecting to database: %s", dbErr)
+	if dbURL == "" {
+		log.Fatalf("dbURL must be set")
 	}
 
-	// dbQueries := database.New(db)
+	db, dbErr := sql.Open("postgres", dbURL)
+
+	if dbErr != nil {
+		log.Fatalf("error connecting to database (%s): %s", dbURL, dbErr)
+	}
+
+
+	dbQueries := database.New(db)
 
 	mux := http.NewServeMux()
 	
 	sessionConfig := &apiConfig {
 		fileserverHits: atomic.Int32{},
+		db: dbQueries,
+		platform: os.Getenv("PLATFORM"),
 	}
 	handler := &http.Server{
 		Addr: ":8080",
@@ -48,8 +76,9 @@ func main() {
 	strippedPrefixHandler := http.StripPrefix("/app", fileServerHandler)
 
 	mux.HandleFunc("GET /admin/metrics", sessionConfig.handlePrintMetrics)
-	mux.HandleFunc("POST /admin/reset", sessionConfig.handleResetMetrics)
+	mux.HandleFunc("POST /admin/reset", sessionConfig.middlewareDevOnly(sessionConfig.handleDeleteAllUsers))
 	mux.HandleFunc("POST /api/validate_chirp", handleChirpValidate)
+	mux.HandleFunc("POST /api/users", sessionConfig.handleUserCreate)
 	
 	mux.Handle("/app/", sessionConfig.middlewareMetricsInc(strippedPrefixHandler))
 
@@ -104,7 +133,7 @@ func handleChirpValidate(res http.ResponseWriter, req *http.Request) {
 	}
 
 
-	res.WriteHeader(200)
+	res.WriteHeader(http.StatusOK)
 
 
 	type CleanMessage struct {
