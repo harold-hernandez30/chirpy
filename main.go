@@ -1,9 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync/atomic"
 )
@@ -22,6 +24,16 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 
 
 func main() {
+	// Database setup
+	dbURL := os.Getenv("DB_URL")
+	_, dbErr := sql.Open("postgres", dbURL)
+
+	if dbErr != nil {
+		log.Fatalf("error connecting to database: %s", dbErr)
+	}
+
+	// dbQueries := database.New(db)
+
 	mux := http.NewServeMux()
 	
 	sessionConfig := &apiConfig {
