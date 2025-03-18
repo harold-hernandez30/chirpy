@@ -10,6 +10,41 @@ import (
 	"github.com/harold-hernandez30/chirpy/internal/database"
 )
 
+
+func (cfg *apiConfig) handleGetAllChirps(res http.ResponseWriter, req *http.Request) {
+	
+
+	dbAllChirps, getAllChirpsErr := cfg.db.GetAllChirps(req.Context())
+
+	var e error
+	if e = handleError(
+		res,
+		getAllChirpsErr,
+		http.StatusBadRequest,
+		fmt.Sprintf("unabl to retrieve chirps from DB: %s", getAllChirpsErr)); e != nil {
+		return
+	}
+
+	chirpSlice := []Chirp{}
+	for _, dbChirp := range dbAllChirps {
+		taggedChirp := MapToTaggedChirp(dbChirp)
+		chirpSlice = append(chirpSlice, taggedChirp)
+	}
+
+	allChirpsBytes, marchalErr := json.Marshal(chirpSlice)
+
+	if marchalErr != nil {
+		log.Printf("Something went wrong: %s", marchalErr)
+		res.WriteHeader(500)
+		return
+	}
+	
+	res.Header().Add("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	res.Write(allChirpsBytes)
+
+}
+
 func (cfg *apiConfig) handleChirpCreate(res http.ResponseWriter, req *http.Request) {
 
 	decodedParams, decodeErr := decodeChirp(req)
@@ -71,7 +106,7 @@ func (cfg *apiConfig) handleChirpCreate(res http.ResponseWriter, req *http.Reque
 	}
 	
 	res.Header().Add("Content-Type", "application/json")
-	res.WriteHeader(201)
+	res.WriteHeader(http.StatusCreated)
 	res.Write(newChirpBytes)
 
 }

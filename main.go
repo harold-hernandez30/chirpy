@@ -80,6 +80,7 @@ func main() {
 	mux.HandleFunc("POST /api/validate_chirp", handleChirpValidate)
 	mux.HandleFunc("POST /api/users", sessionConfig.handleUserCreate)
 	mux.HandleFunc("POST /api/chirps", sessionConfig.handleChirpCreate)
+	mux.HandleFunc("GET /api/chirps", sessionConfig.handleGetAllChirps)
 	
 	mux.Handle("/app/", sessionConfig.middlewareMetricsInc(strippedPrefixHandler))
 
