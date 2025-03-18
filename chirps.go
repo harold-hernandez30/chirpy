@@ -10,6 +10,55 @@ import (
 	"github.com/harold-hernandez30/chirpy/internal/database"
 )
 
+func (cfg *apiConfig) handleGetChirp(res http.ResponseWriter, req *http.Request) {
+	chirpID := req.PathValue("chirpID")
+
+	
+	var e error
+	if len(chirpID) == 0 {
+		handleError(
+		res,
+		fmt.Errorf("chirpID not found"),
+		http.StatusBadRequest,
+		fmt.Sprintln("chirpID must be provided"))
+		return
+	}
+
+	
+	nullUUID := uuid.NullUUID {}
+	uuidErr := nullUUID.Scan(chirpID)
+
+	if e = handleError(res, 
+		uuidErr, 
+		http.StatusBadRequest, 
+		fmt.Sprintf("invalid uuid: %s", uuidErr)); e != nil {
+		return
+	}
+
+	foundChirp, getChirpErr := cfg.db.GetChirp(req.Context(), nullUUID.UUID)
+
+	
+	if e = handleError(res, 
+		getChirpErr, 
+		http.StatusNotFound, 
+		fmt.Sprintf("chirp with id (%s) not found", chirpID)); e != nil {
+		return
+	}
+
+	chirpResponse := MapToTaggedChirp(foundChirp)
+	chirpResponseByte, marshalErr := json.Marshal(&chirpResponse)
+
+	if marshalErr != nil {
+		log.Printf("Something went wrong: %s", marshalErr)
+		res.WriteHeader(500)
+		return
+	}
+
+	res.Header().Add("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	res.Write(chirpResponseByte)
+
+}
 
 func (cfg *apiConfig) handleGetAllChirps(res http.ResponseWriter, req *http.Request) {
 	
