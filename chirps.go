@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -10,58 +11,44 @@ import (
 )
 
 func (cfg *apiConfig) handleChirpCreate(res http.ResponseWriter, req *http.Request) {
-	type params struct {
-		Body string `json:"body"`
-		UserId string `json:"user_id"`
-	}
 
-	reqParams := params{}
-
-	decoder := json.NewDecoder(req.Body)
-	decodeErr := decoder.Decode(&reqParams)
-
-	if decodeErr != nil {
-		log.Printf("unable to decode: %s", decodeErr)
-		res.WriteHeader(http.StatusBadRequest)
+	decodedParams, decodeErr := decodeChirp(req)
+	var e error
+	if e = handleError(res, 
+		decodeErr, 
+		http.StatusBadRequest, 
+		fmt.Sprintf("unable to decode: %s", decodeErr)); e != nil {
 		return
 	}
 
 	nullUUID := uuid.NullUUID {}
-	uuidErr := nullUUID.Scan(reqParams.UserId)
+	uuidErr := nullUUID.Scan(decodedParams.UserId)
 
-	if uuidErr != nil {
-		log.Printf("invalid uuid: %s", uuidErr)
-		res.WriteHeader(http.StatusBadRequest)
+	if e = handleError(res, 
+		uuidErr, 
+		http.StatusBadRequest, 
+		fmt.Sprintf("invalid uuid: %s", uuidErr)); e != nil {
 		return
 	}
 
 	user, getUserErr := cfg.db.GetUser(req.Context(), nullUUID.UUID)
 
-	if getUserErr != nil {
-		
-		log.Printf("error getting user (UUID: %s): %s", nullUUID.UUID.String(), getUserErr)
-		res.WriteHeader(http.StatusBadRequest)
+	if e = handleError(res, 
+		uuidErr, 
+		http.StatusBadRequest, 
+		fmt.Sprintf("error getting user (UUID: %s): %s", nullUUID.UUID.String(), getUserErr)); e != nil {
 		return
 	}
 
-	type ErrorResponse struct {
-		Error string `json:"error"`
-	}
-
 	
-	if len(reqParams.Body) > 140 {
-		res.WriteHeader(400)
-		errorMessage := ErrorResponse{
-			Error: "Chirp is too long",
-		}
+	chirpCreateErr := validateChirpCreate(res, decodedParams.Body)
 
-		errorBytes, _ := json.Marshal(errorMessage)
-		res.Write(errorBytes)
+	if chirpCreateErr != nil {
 		return
 	}
 
 	chirpParams := database.CreateChirpParams {
-		Body: reqParams.Body,
+		Body: decodedParams.Body,
 		UserID: user.ID,
 	}
 	newChirp, createChirpErr := cfg.db.CreateChirp(req.Context(), chirpParams)
