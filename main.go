@@ -79,6 +79,7 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", sessionConfig.middlewareDevOnly(sessionConfig.handleDeleteAllUsers))
 	mux.HandleFunc("POST /api/validate_chirp", handleChirpValidate)
 	mux.HandleFunc("POST /api/users", sessionConfig.handleUserCreate)
+	mux.HandleFunc("POST /api/login", sessionConfig.handleUserLogin)
 	mux.HandleFunc("POST /api/chirps", sessionConfig.handleChirpCreate)
 	mux.HandleFunc("GET /api/chirps", sessionConfig.handleGetAllChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", sessionConfig.handleGetChirp)
