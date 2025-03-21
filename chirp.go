@@ -31,7 +31,6 @@ func MapToTaggedChirp(dbChirp database.Chirp) Chirp {
 
 type ChirpCreateParams struct {
 	Body string `json:"body"`
-	UserId string `json:"user_id"`
 }
 
 func decodeChirp(req *http.Request) (*ChirpCreateParams, error) {

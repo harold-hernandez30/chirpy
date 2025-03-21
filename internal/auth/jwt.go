@@ -12,10 +12,11 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 	currentTime := time.Now().UTC()
 	numericDate := jwt.NewNumericDate(currentTime)
 	
+	expireDate := jwt.NewNumericDate(numericDate.Add(expiresIn * time.Second))
 	claim := &jwt.RegisteredClaims{
 		Issuer: "chirpy",
 		IssuedAt: numericDate,
-		ExpiresAt: jwt.NewNumericDate(numericDate.Add(expiresIn)),
+		ExpiresAt: expireDate,
 		Subject: userID.String(),
 	}	
 

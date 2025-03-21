@@ -9,6 +9,10 @@ import (
 )
 
 func TestMakeJWT(t *testing.T) {
+
+	fmt.Println("===========================")
+	fmt.Println("TestMakeJWT")
+	fmt.Println("===========================")
 	refUUID, uuidErr := uuid.NewRandom()
 
 	if uuidErr != nil {
@@ -32,12 +36,11 @@ func TestMakeJWT(t *testing.T) {
 	}
 
 
-	fmt.Println("Test running for TestMakeJWT")
 	fmt.Printf("secret: %s\n", secret)
 	fmt.Printf("tokenString: %s\n", tokenString)
 	fmt.Printf("uuid reference: %s\n", refUUID.String())
 	fmt.Printf("uuid from claim: %s\n", uuidFromClaim.String())
-	
+
 	if uuidFromClaim.String() != refUUID.String() {
 		t.Error("UUID from validateJWT not equal\n")
 		return

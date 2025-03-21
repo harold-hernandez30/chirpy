@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/harold-hernandez30/chirpy/internal/auth"
 	"github.com/harold-hernandez30/chirpy/internal/database"
@@ -13,6 +14,7 @@ func (cfg *apiConfig) handleUserLogin(res http.ResponseWriter, req *http.Request
 	type userCredentialsParam struct {
 		Email string `json:"email"`
 		Password string `json:"password"`
+		ExpiresInSeconds int `json:"expires_in_seconds"`
 	}
 
 	
@@ -45,7 +47,24 @@ func (cfg *apiConfig) handleUserLogin(res http.ResponseWriter, req *http.Request
 		return
 	}
 
+	expireTimeInSeconds := 1 * 60 * 60 //1hr
+
+	if requestParam.ExpiresInSeconds >= 0 {
+		expireTimeInSeconds = requestParam.ExpiresInSeconds
+	}
+
+	jwtRes, makeJwtErr := auth.MakeJWT(user.ID, cfg.secret, time.Duration(expireTimeInSeconds * time.Now().Second()))
+
+	if makeJwtErr != nil {
+		
+		log.Printf("Something went wrong: %s", makeJwtErr)
+		res.WriteHeader(500)
+		return
+	}
+
 	taggedUser := MapToTaggedUser(user)
+
+	taggedUser.Token = jwtRes
 	newUserBytes, marshalErr := json.Marshal(taggedUser)
 
 	if marshalErr != nil {

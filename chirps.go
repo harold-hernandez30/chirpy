@@ -105,22 +105,12 @@ func (cfg *apiConfig) handleChirpCreate(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	nullUUID := uuid.NullUUID {}
-	uuidErr := nullUUID.Scan(decodedParams.UserId)
+	user, getUserErr := cfg.db.GetUser(req.Context(), cfg.currentUserUUID)
 
 	if e = handleError(res, 
-		uuidErr, 
+		getUserErr, 
 		http.StatusBadRequest, 
-		fmt.Sprintf("invalid uuid: %s", uuidErr)); e != nil {
-		return
-	}
-
-	user, getUserErr := cfg.db.GetUser(req.Context(), nullUUID.UUID)
-
-	if e = handleError(res, 
-		uuidErr, 
-		http.StatusBadRequest, 
-		fmt.Sprintf("error getting user (UUID: %s): %s", nullUUID.UUID.String(), getUserErr)); e != nil {
+		fmt.Sprintf("error getting user (UUID: %s): %s", cfg.currentUserUUID.String(), getUserErr)); e != nil {
 		return
 	}
 

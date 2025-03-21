@@ -6,10 +6,13 @@ import (
 )
 
 func TestHashPassword(t *testing.T) {
+
+	fmt.Println("===========================")
+	fmt.Println("TestHashPassword")
+	fmt.Println("===========================")
 	plaintext := "ldkasjfoiejrfolwdfj@#$@#"
 	hashedPassword, err := HashPassword(plaintext)
 
-	fmt.Println("Test running for TestHashPassword")
 	fmt.Printf("plaintext: %s\n", plaintext)
 	fmt.Printf("hashedPassword: %s\n", hashedPassword)
 	if err != nil {
