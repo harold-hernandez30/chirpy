@@ -48,27 +48,28 @@ func (cfg *apiConfig) middlewareDevOnly(next func (res http.ResponseWriter, req 
 
 func (cfg *apiConfig) middlewareAuthenticatedOnly(next func (res http.ResponseWriter, req *http.Request)) func (http.ResponseWriter, *http.Request) {
 	return func (res http.ResponseWriter, req *http.Request) {
-		bearer, getBearTokenErr := auth.GetBearerToken(req.Header)
-		if getBearTokenErr != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		userUUID, validateJWTErr := auth.ValidateJWT(bearer, cfg.secret)
-
-		if validateJWTErr != nil {
+		if userUUID, validateJWTErr := cfg.getUserFromAuthorization(req); validateJWTErr != nil {
 			fmt.Printf("validating JWT error failed: %s\n", validateJWTErr)
 			res.WriteHeader(http.StatusUnauthorized)
 			content := []byte(http.StatusText(http.StatusUnauthorized))
 			res.Write(content)
-			return
+		} else {
+
+			cfg.currentUserUUID = userUUID
+			next(res, req)
 		}
-
-		cfg.currentUserUUID = userUUID
-
-		next(res, req)
 	}
 }
+
+func (cfg *apiConfig) getUserFromAuthorization(req *http.Request) (uuid.UUID, error) {
+	if bearer, getBearTokenErr := auth.GetBearerToken(req.Header); getBearTokenErr != nil {
+		return uuid.Nil, getBearTokenErr
+	} else {
+		return auth.ValidateJWT(bearer, cfg.secret)
+	}
+}
+
+
 
 
 func main() {
@@ -109,6 +110,7 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", sessionConfig.middlewareDevOnly(sessionConfig.handleDeleteAllUsers))
 	mux.HandleFunc("POST /api/validate_chirp", handleChirpValidate)
 	mux.HandleFunc("POST /api/users", sessionConfig.handleUserCreate)
+	mux.HandleFunc("PUT /api/users", sessionConfig.handleUpdatePassword)
 	mux.HandleFunc("POST /api/login", sessionConfig.handleUserLogin)
 	mux.HandleFunc("POST /api/refresh", sessionConfig.handleRefresh)
 	mux.HandleFunc("POST /api/revoke", sessionConfig.handleRevokeRefreshToken)

@@ -21,3 +21,8 @@ DELETE FROM users;
 SELECT * FROM users
 WHERE id = $1
 LIMIT 1;
+
+-- name: UpdateUser :exec
+UPDATE users
+SET hashed_password = $1, email = $2, updated_at = NOW()
+WHERE id = $3;

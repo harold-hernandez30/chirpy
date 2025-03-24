@@ -11,6 +11,83 @@ import (
 	"github.com/harold-hernandez30/chirpy/internal/database"
 )
 
+
+
+func (cfg *apiConfig) handleUpdatePassword(res http.ResponseWriter, req *http.Request) {
+	if userUUID, validateJWTErr := cfg.getUserFromAuthorization(req); validateJWTErr != nil {
+		fmt.Printf("validating JWT error failed: %s\n", validateJWTErr)
+		res.WriteHeader(http.StatusUnauthorized)
+		content := []byte(http.StatusText(http.StatusUnauthorized))
+		res.Write(content)
+	} else {
+		type userPasswordChangeParam struct {
+			Email string `json:"email"`
+			Password string `json:"password"`
+		}
+
+		
+		decoder := json.NewDecoder(req.Body)
+		param := userPasswordChangeParam{}
+		decodeError := decoder.Decode(&param)
+
+		if decodeError != nil {
+			fmt.Printf("Error decoding body: %s\n", decodeError)
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+
+		newPassword, hashPasswordErr := auth.HashPassword(param.Password)
+
+		if hashPasswordErr != nil {
+			fmt.Printf("unable to hash new password: %s\n", hashPasswordErr)
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		updatePasswordParams := database.UpdateUserParams {
+			ID: userUUID,
+			Email: param.Email,
+			HashedPassword: newPassword,
+		}
+		
+		updatePasswordErr := cfg.db.UpdateUser(req.Context(), updatePasswordParams)
+
+		if updatePasswordErr != nil {
+			fmt.Printf("unable to hash new password: %s\n", hashPasswordErr)
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		foundUser, getUserErr := cfg.db.GetUser(req.Context(), userUUID)
+
+		if getUserErr != nil {
+			fmt.Printf("unable to get user: %s\n", getUserErr)
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		newUpdatedUser := MapToTaggedUser(foundUser)
+
+
+		
+		newUserBytes, marshalErr := json.Marshal(newUpdatedUser)
+
+		if marshalErr != nil {
+			log.Printf("Something went wrong: %s", marshalErr)
+			res.WriteHeader(500)
+			return
+		}
+
+		res.Header().Add("Content-Type", "application/json")
+		res.WriteHeader(http.StatusOK)
+		res.Write(newUserBytes)
+		
+	}
+
+	
+}
+
 func (cfg *apiConfig) handleRefresh(res http.ResponseWriter, req *http.Request) {
 	token, bearerTokenErr := auth.GetBearerToken(req.Header)
 
