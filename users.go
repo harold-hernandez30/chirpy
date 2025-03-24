@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -10,11 +11,86 @@ import (
 	"github.com/harold-hernandez30/chirpy/internal/database"
 )
 
+func (cfg *apiConfig) handleRefresh(res http.ResponseWriter, req *http.Request) {
+	token, bearerTokenErr := auth.GetBearerToken(req.Header)
+
+	if bearerTokenErr != nil {
+		fmt.Printf("unable to parse refresh token: %s\n", bearerTokenErr)
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	userAndTokenRow, getUserFromRefreshTokenErr := cfg.db.GetUserFromRefreshToken(req.Context(), token)
+	if getUserFromRefreshTokenErr != nil {
+		
+		fmt.Printf("user not found: %s\n", getUserFromRefreshTokenErr)
+		res.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	fmt.Printf("user and row found")
+
+	if time.Now().After(userAndTokenRow.RefreshToken.ExpiresAt) {
+		
+		fmt.Printf("user refresh token expired: %s\n", userAndTokenRow.RefreshToken.RevokedAt.Time)
+		res.WriteHeader(http.StatusUnauthorized)
+	}
+
+	
+	fmt.Printf("refresh token is valid")
+
+	type tokenResponse struct {
+		Token string `json:"token"`
+	}
+
+	newRefreshToken, _ := auth.MakeRefreshToken()
+
+
+	refreshTokenParams := database.CreateRefreshTokenParams {
+		Token: newRefreshToken,
+		UserID: userAndTokenRow.User.ID,
+	}
+	
+	
+	_, createRefresTokenErr := cfg.db.CreateRefreshToken(req.Context(), refreshTokenParams)
+
+	if createRefresTokenErr != nil {
+		log.Printf("Something went wrong: %s", createRefresTokenErr)
+		res.WriteHeader(500)
+		return
+	}
+
+	newAccessToken, makeJWTErr := auth.MakeJWT(userAndTokenRow.RefreshToken.UserID, cfg.secret, 1 * time.Hour)
+
+
+	if makeJWTErr != nil {
+		
+		log.Printf("unable to create jwt: %s", makeJWTErr)
+		res.WriteHeader(500)
+		return
+	}
+
+
+	resBody := tokenResponse {
+		Token: newAccessToken,
+	}
+	if resBodyInBytes, marshalErr := json.Marshal(&resBody); marshalErr == nil {
+
+		res.Header().Add("Content-Type", "application/json")
+		res.WriteHeader(http.StatusOK)
+		res.Write(resBodyInBytes)
+	} else {
+		
+		fmt.Printf("something went wrong: %s\n", marshalErr)
+		res.WriteHeader(http.StatusInternalServerError)
+	}
+
+}
+
 func (cfg *apiConfig) handleUserLogin(res http.ResponseWriter, req *http.Request) {
 	type userCredentialsParam struct {
 		Email string `json:"email"`
 		Password string `json:"password"`
-		ExpiresInSeconds int `json:"expires_in_seconds"`
 	}
 
 	
@@ -47,13 +123,8 @@ func (cfg *apiConfig) handleUserLogin(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	expireTimeInSeconds := 1 * 60 * 60 //1hr
 
-	if requestParam.ExpiresInSeconds >= 0 {
-		expireTimeInSeconds = requestParam.ExpiresInSeconds
-	}
-
-	jwtRes, makeJwtErr := auth.MakeJWT(user.ID, cfg.secret, time.Duration(expireTimeInSeconds * time.Now().Second()))
+	jwtRes, makeJwtErr := auth.MakeJWT(user.ID, cfg.secret, 1 * time.Hour)
 
 	if makeJwtErr != nil {
 		
@@ -63,8 +134,32 @@ func (cfg *apiConfig) handleUserLogin(res http.ResponseWriter, req *http.Request
 	}
 
 	taggedUser := MapToTaggedUser(user)
+	refreshToken, makeRefreshTokenErr := auth.MakeRefreshToken()
 
-	taggedUser.Token = jwtRes
+	if makeRefreshTokenErr != nil {
+		log.Printf("Something went wrong: %s", makeRefreshTokenErr)
+		res.WriteHeader(500)
+		return
+	}
+
+
+	taggedUser.AccessToken = jwtRes
+	
+	refreshTokenParams := database.CreateRefreshTokenParams {
+		Token: refreshToken,
+		UserID: user.ID,
+	}
+	
+	refreshTokenRow, createRefresTokenErr := cfg.db.CreateRefreshToken(req.Context(), refreshTokenParams)
+
+	if createRefresTokenErr != nil {
+		log.Printf("Something went wrong: %s", createRefresTokenErr)
+		res.WriteHeader(500)
+		return
+	}
+
+	taggedUser.RefreshToken = refreshTokenRow.Token
+
 	newUserBytes, marshalErr := json.Marshal(taggedUser)
 
 	if marshalErr != nil {
@@ -72,6 +167,7 @@ func (cfg *apiConfig) handleUserLogin(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(500)
 		return
 	}
+	
 
 	res.Header().Add("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)

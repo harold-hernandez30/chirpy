@@ -110,6 +110,9 @@ func main() {
 	mux.HandleFunc("POST /api/validate_chirp", handleChirpValidate)
 	mux.HandleFunc("POST /api/users", sessionConfig.handleUserCreate)
 	mux.HandleFunc("POST /api/login", sessionConfig.handleUserLogin)
+	mux.HandleFunc("POST /api/refresh", sessionConfig.handleRefresh)
+	mux.HandleFunc("POST /api/revoke", sessionConfig.handleRevokeRefreshToken)
+	
 	
 	mux.HandleFunc("POST /api/chirps", sessionConfig.middlewareAuthenticatedOnly(sessionConfig.handleChirpCreate))
 	mux.HandleFunc("GET /api/chirps", sessionConfig.handleGetAllChirps)
