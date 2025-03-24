@@ -119,6 +119,7 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", sessionConfig.middlewareAuthenticatedOnly(sessionConfig.handleChirpCreate))
 	mux.HandleFunc("GET /api/chirps", sessionConfig.handleGetAllChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", sessionConfig.handleGetChirp)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", sessionConfig.middlewareAuthenticatedOnly(sessionConfig.handleDeleteChirp))
 	
 	mux.Handle("/app/", sessionConfig.middlewareMetricsInc(strippedPrefixHandler))
 

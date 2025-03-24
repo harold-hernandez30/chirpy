@@ -10,6 +10,61 @@ import (
 	"github.com/harold-hernandez30/chirpy/internal/database"
 )
 
+func (cfg *apiConfig) handleDeleteChirp(res http.ResponseWriter, req *http.Request) {
+	if userUUID, validateJWTErr := cfg.getUserFromAuthorization(req); validateJWTErr != nil {
+		fmt.Printf("validating JWT error failed: %s\n", validateJWTErr)
+		res.WriteHeader(http.StatusUnauthorized)
+		content := []byte(http.StatusText(http.StatusUnauthorized))
+		res.Write(content)
+	} else {
+		
+		chirpID := req.PathValue("chirpID")
+		if len(chirpID) == 0 {
+			handleError(
+			res,
+			fmt.Errorf("chirpID not found"),
+			http.StatusBadRequest,
+			fmt.Sprintln("chirpID must be provided"))
+			return
+		}
+
+		uuidChirp, parseChirpIdErr := uuid.Parse(chirpID)
+
+		if parseChirpIdErr != nil {
+			fmt.Printf("unable to parse uuid provided: %s\n", parseChirpIdErr)
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		
+		foundChirp, getChirpErr := cfg.db.GetChirp(req.Context(), uuidChirp)
+
+		if parseChirpIdErr != nil {
+			fmt.Printf("chirp does not exist: %s\n", getChirpErr)
+			res.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		if foundChirp.UserID.String() != userUUID.String() {
+			fmt.Printf("chirp not owned by user: %s\n", foundChirp)
+			res.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		deleteChirpErr := cfg.db.DeleteChirp(req.Context(), foundChirp.ID)
+
+		if deleteChirpErr != nil {
+			
+			fmt.Printf("unabled to delete chirp: %s\n", deleteChirpErr)
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		res.WriteHeader(http.StatusNoContent)
+
+	}
+	
+}
+
 func (cfg *apiConfig) handleGetChirp(res http.ResponseWriter, req *http.Request) {
 	chirpID := req.PathValue("chirpID")
 
