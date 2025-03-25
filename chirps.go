@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 
 	"github.com/google/uuid"
 	"github.com/harold-hernandez30/chirpy/internal/database"
@@ -144,7 +145,7 @@ func (cfg *apiConfig) handleGetAllChirps(res http.ResponseWriter, req *http.Requ
 			return
 		}
 
-		chirpsResponseHelper(chirpsFromUser, res)
+		chirpsResponseHelper(chirpsFromUser, res, req)
 	} else {
 
 		dbAllChirps, getAllChirpsErr := cfg.db.GetAllChirps(req.Context())
@@ -157,16 +158,30 @@ func (cfg *apiConfig) handleGetAllChirps(res http.ResponseWriter, req *http.Requ
 			return
 		}
 
-		chirpsResponseHelper(dbAllChirps, res)
+		chirpsResponseHelper(dbAllChirps, res, req)
 	}
 }
 
-func chirpsResponseHelper(chirpsFromDb []database.Chirp, res http.ResponseWriter) error {
+func chirpsResponseHelper(chirpsFromDb []database.Chirp, res http.ResponseWriter, req *http.Request) error {
+
+	sortBy := req.URL.Query().Get("sort")
 
 	chirpSlice := []Chirp{}
 	for _, dbChirp := range chirpsFromDb {
 		taggedChirp := MapToTaggedChirp(dbChirp)
 		chirpSlice = append(chirpSlice, taggedChirp)
+	}
+
+	if len(sortBy) > 0 {
+		sort.Slice(chirpSlice, func(i, j int) bool {
+			if (sortBy == "asc") {
+				return chirpSlice[j].CreatedAt.After(chirpSlice[i].CreatedAt)
+			} else if (sortBy == "desc") {
+				return chirpSlice[i].CreatedAt.After(chirpSlice[j].CreatedAt)
+			} else {
+				return true
+			}
+		})
 	}
 
 	allChirpsBytes, marchalErr := json.Marshal(chirpSlice)
