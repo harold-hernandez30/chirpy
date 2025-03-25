@@ -108,13 +108,15 @@ func main() {
 
 	mux.HandleFunc("GET /admin/metrics", sessionConfig.handlePrintMetrics)
 	mux.HandleFunc("POST /admin/reset", sessionConfig.middlewareDevOnly(sessionConfig.handleDeleteAllUsers))
+
+	mux.HandleFunc("POST /api/polka/webhooks", sessionConfig.handlePolkaWebHookEvents)
+
 	mux.HandleFunc("POST /api/validate_chirp", handleChirpValidate)
 	mux.HandleFunc("POST /api/users", sessionConfig.handleUserCreate)
 	mux.HandleFunc("PUT /api/users", sessionConfig.handleUpdatePassword)
 	mux.HandleFunc("POST /api/login", sessionConfig.handleUserLogin)
 	mux.HandleFunc("POST /api/refresh", sessionConfig.handleRefresh)
 	mux.HandleFunc("POST /api/revoke", sessionConfig.handleRevokeRefreshToken)
-	
 	
 	mux.HandleFunc("POST /api/chirps", sessionConfig.middlewareAuthenticatedOnly(sessionConfig.handleChirpCreate))
 	mux.HandleFunc("GET /api/chirps", sessionConfig.handleGetAllChirps)

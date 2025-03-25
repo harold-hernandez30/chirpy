@@ -14,6 +14,7 @@ type User struct {
 	Email     string    `json:"email"`
 	AccessToken	  string	`json:"token"`
 	RefreshToken string `json:"refresh_token"`
+	UserRedMember bool `json:"is_chirpy_red"`
 }
 
 func MapToTaggedUser(dbUser database.User) User {
@@ -22,5 +23,6 @@ func MapToTaggedUser(dbUser database.User) User {
 		CreatedAt: dbUser.CreatedAt,
 		UpdatedAt: dbUser.UpdatedAt,
 		Email: dbUser.Email,
+		UserRedMember: dbUser.IsChirpyRed.Bool,
 	}
 }
