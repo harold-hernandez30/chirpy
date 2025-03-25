@@ -116,21 +116,55 @@ func (cfg *apiConfig) handleGetChirp(res http.ResponseWriter, req *http.Request)
 }
 
 func (cfg *apiConfig) handleGetAllChirps(res http.ResponseWriter, req *http.Request) {
-	
 
-	dbAllChirps, getAllChirpsErr := cfg.db.GetAllChirps(req.Context())
-
+	queryParams := req.URL.Query()
+	filterAuthorId := queryParams.Get("author_id")
 	var e error
-	if e = handleError(
-		res,
-		getAllChirpsErr,
-		http.StatusBadRequest,
-		fmt.Sprintf("unabl to retrieve chirps from DB: %s", getAllChirpsErr)); e != nil {
-		return
+	
+	if filterAuthorId != "" {
+		authorUUID, parseErr := uuid.Parse(filterAuthorId)
+
+
+		if e = handleError(
+			res,
+			parseErr,
+			http.StatusBadRequest,
+			fmt.Sprintf("unable to parse author_id: %s", parseErr)); e != nil {
+			return
+		}
+
+		chirpsFromUser, chirpsFromUserErr := cfg.db.GetChirpsFromUser(req.Context(), authorUUID)
+
+		
+		if e = handleError(
+			res,
+			chirpsFromUserErr,
+			http.StatusBadRequest,
+			fmt.Sprintf("unable to get chirps from author_id: %s", chirpsFromUserErr)); e != nil {
+			return
+		}
+
+		chirpsResponseHelper(chirpsFromUser, res)
+	} else {
+
+		dbAllChirps, getAllChirpsErr := cfg.db.GetAllChirps(req.Context())
+
+		if e = handleError(
+			res,
+			getAllChirpsErr,
+			http.StatusBadRequest,
+			fmt.Sprintf("unable to retrieve chirps from DB: %s", getAllChirpsErr)); e != nil {
+			return
+		}
+
+		chirpsResponseHelper(dbAllChirps, res)
 	}
+}
+
+func chirpsResponseHelper(chirpsFromDb []database.Chirp, res http.ResponseWriter) error {
 
 	chirpSlice := []Chirp{}
-	for _, dbChirp := range dbAllChirps {
+	for _, dbChirp := range chirpsFromDb {
 		taggedChirp := MapToTaggedChirp(dbChirp)
 		chirpSlice = append(chirpSlice, taggedChirp)
 	}
@@ -140,13 +174,13 @@ func (cfg *apiConfig) handleGetAllChirps(res http.ResponseWriter, req *http.Requ
 	if marchalErr != nil {
 		log.Printf("Something went wrong: %s", marchalErr)
 		res.WriteHeader(500)
-		return
+		return marchalErr
 	}
 	
 	res.Header().Add("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	res.Write(allChirpsBytes)
-
+	return nil
 }
 
 func (cfg *apiConfig) handleChirpCreate(res http.ResponseWriter, req *http.Request) {
