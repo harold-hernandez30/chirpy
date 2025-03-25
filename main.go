@@ -23,6 +23,7 @@ type apiConfig struct {
 	platform string
 	secret string
 	currentUserUUID uuid.UUID
+	polkaApiKey string
 }
 
 
@@ -97,6 +98,7 @@ func main() {
 		db: dbQueries,
 		platform: os.Getenv("PLATFORM"),
 		secret: os.Getenv("SECRET"),
+		polkaApiKey: os.Getenv("POLKA_KEY"),
 	}
 	handler := &http.Server{
 		Addr: ":8080",

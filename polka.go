@@ -6,9 +6,25 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/harold-hernandez30/chirpy/internal/auth"
 )
 
 func (cfg *apiConfig) handlePolkaWebHookEvents(res http.ResponseWriter, req *http.Request) {
+
+	apiKey, getApiKeyErr := auth.GetAPIKey(req.Header)
+
+	if getApiKeyErr != nil {
+		fmt.Printf("api key error: %s\n", getApiKeyErr)
+		res.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if apiKey != cfg.polkaApiKey {
+
+		fmt.Printf("invalid api key: %s\n", apiKey)
+		res.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	type EventData struct {
 		UserID string `json:"user_id"`
